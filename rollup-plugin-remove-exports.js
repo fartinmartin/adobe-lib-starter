@@ -1,9 +1,23 @@
 // https://github.com/motiondeveloper/rollup-plugin-ae-jsx
-// TODO: replace with new (@fartinmartin) npm library?
+// TODO: replace with new (@fartinmartin scoped) npm library?
 const estreeWalker = require("estree-walker");
 const MagicString = require("magic-string");
 
 const whitespace = /[\s;]/; // whitespace or `;`
+
+// https://github.com/estree/estree
+const disallowedNodeTypes = [
+	"ExportDefaultDeclaration",
+	"ExportNamedDeclaration",
+	"ExportAllDeclaration",
+];
+// disallowedNodeTypes array above does not capture: `exports.[exportName] = [exportName];`
+const isExportsAssignment = (node) => {
+	const isAssignment = node.type === "AssignmentExpression";
+	if (!isAssignment) return false;
+	const isMemberExpression = node.left.type === "MemberExpression";
+	return isMemberExpression ? node.left.object.name === "exports" : false;
+};
 
 function removeExports(options = {}) {
 	const exports = [];
@@ -31,17 +45,15 @@ function removeExports(options = {}) {
 					magicString.remove(start, end);
 				}
 
-				// Find exports by looking for expressions
-				// that are exports.[exportName] = [exportName];
+				// remove export declaration and/or `exports.[exportName] = [exportName];` assignments
 				estreeWalker.walk(ast, {
 					enter(node, parent) {
 						if (
-							// it's an export expression statement
-							node.type === "AssignmentExpression" &&
-							node.left.object.name === "exports"
+							disallowedNodeTypes.includes(node.type) ||
+							isExportsAssignment(node)
 						) {
 							remove(node.start, node.end);
-							const name = node.right.name;
+							const name = node.right?.name;
 							console.log(
 								`removed [${node.start}-${node.end}] exports.${name} = ${name};`
 							);
