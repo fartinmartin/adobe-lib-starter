@@ -21,7 +21,7 @@ export default [
 		},
 		plugins: [
 			nodeResolve(),
-			typescript({ declaration: false }),
+			typescript({ declaration: false, removeComments: true }),
 			removeExports(),
 		],
 	},
